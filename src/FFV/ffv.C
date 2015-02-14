@@ -20,6 +20,7 @@
  */
 
 #include "ffv.h"
+#include "LPT.h"
 
 // コンストラクタ
 FFV::FFV()
@@ -380,6 +381,39 @@ int FFV::MainLoop()
     Session_CurrentStep = i;
     
     int loop_ret = Loop(i);
+
+    //LPT 引数設定 start
+    static LPT::LPT_CalcArgs calc_args;
+    calc_args.FluidVelocity=d_v;
+    calc_args.deltaT=DT.get_DT();
+    calc_args.divT=1;
+    calc_args.CurrentTime=CurrentTime;
+    calc_args.CurrentTimeStep=CurrentStep;
+    //LPT 引数設定 end
+    //LPT 粒子計算呼び出し
+    LPT::LPT::GetInstance()->LPT_CalcParticleData(calc_args);
+    //LPT ファイル出力
+    if ( C.Hide.PM_Test == OFF )
+    {
+        // 通常
+        if ( C.Interval[Control::tg_basic].isTriggered(CurrentStep, CurrentTime) )
+        {
+            LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
+        }
+
+        // リスタート実行時にIntervalが正常にチェックされないようなので、1000ステップ毎に強制的にファイル出力を行う
+        if(CurrentStep%1000 == 0) LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
+
+        // 最終ステップ
+        if ( C.Interval[Control::tg_compute].isLast(CurrentStep, CurrentTime) )
+        {
+            // 指定間隔の出力がない場合のみ（重複を避ける）
+            if ( !C.Interval[Control::tg_basic].isTriggered(CurrentStep, CurrentTime) )
+            {
+                LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
+            }
+        }
+    }
     
     switch (loop_ret) 
     {

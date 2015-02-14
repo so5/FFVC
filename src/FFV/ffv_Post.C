@@ -20,6 +20,7 @@
  */
 
 #include "ffv.h"
+#include "LPT.h"
 
 
 
@@ -74,6 +75,7 @@ bool FFV::Post()
     }
   }
   
+  LPT::LPT::GetInstance()->LPT_Post();
   
   return true;
 }

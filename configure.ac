@@ -331,6 +331,24 @@ else
   exit 1
 fi
 
+#
+# LPTlib
+#
+AC_SUBST(LPT_DIR)
+AC_SUBST(LPT_CFLAGS)
+AC_ARG_WITH(lpt, [AC_HELP_STRING([--with-lpt=dir],[Specify LPTlib install directory])], , with_lpt=none)
+AC_SUBST(LPT_LDFLAGS)
+
+if test x"$with_lpt" != x"none" ; then
+  LPT_DIR=$with_lpt;
+  LPT_CFLAGS=`$LPT_DIR/bin/lpt-config --cflags`
+  LPT_LDFLAGS=`$LPT_DIR/bin/lpt-config --libs`
+else
+  echo "  Error: LPT library is not specified."
+  echo "         Specify --with-lpt option."
+  exit 1
+fi
+
 
 
 

@@ -22,6 +22,7 @@
 #include "ffv.h"
 #include "limits.h"
 #include <algorithm>
+#include "LPT.h"
 
 
 // #################################################################
@@ -141,6 +142,41 @@ int FFV::Initialize(int argc, char **argv)
   // Intrinsic classの同定
   identifyExample(fp);
   
+  //LPT用のプロセスグループの分割および設定
+  int nproc_for_ffv=paraMngr->GetNumRank();
+  std::string label = "/MPI/NumberOfProcs";
+  
+  if ( !(tp_ffv.getInspectedValue(label, nproc_for_ffv)) )
+  {
+    Exit(0);
+  }
+  int* proclist = new int [nproc_for_ffv];
+  for (int i=0; i<nproc_for_ffv; i++)
+  {
+      proclist[i]=i;
+  }
+  int ffv_group_number=paraMngr->CreateProcessGroup(nproc_for_ffv, proclist);
+  delete [] proclist;
+  setRankInfo(paraMngr, ffv_group_number);
+
+  int lpt_group_number=ffv_group_number;
+  const int nproc_for_lpt=paraMngr->GetNumRank()-nproc_for_ffv;
+  //FFVがCOMM_WORLD内の全プロセスを使っていない場合のみ、LPT用のコミュニケータを作成
+  if(nproc_for_lpt > 0)
+  {
+      int* proclist = new int [nproc_for_lpt];
+      for (int i=0; i<nproc_for_lpt; i++)
+      {
+          proclist[i]=i+nproc_for_ffv;
+      }
+      lpt_group_number=paraMngr->CreateProcessGroup(nproc_for_lpt, proclist);
+      delete [] proclist;
+  }
+
+
+  //以降の処理は流体プロセスのみが実行
+  if(paraMngr->GetMyRankID(procGrp) != MPI_PROC_NULL)
+  {
 
   // パラメータの取得と計算領域の初期化，並列モードを返す
   // Polylibの基準値も設定
@@ -532,8 +568,7 @@ int FFV::Initialize(int argc, char **argv)
   
   F->getStagingOption();
   
-  F->getRestartDFI();
-
+  F->getRestartDFI(); 
   
   
   // 初期値とリスタート処理 瞬時値と統計値に分けて処理　------------------
@@ -609,8 +644,6 @@ int FFV::Initialize(int argc, char **argv)
   
   // 初期条件の条件設定
   setInitialCondition();
-  
-
   // サンプリング元となるデータ配列の登録
   if ( C.SamplingMode == ON ) 
   {
@@ -724,6 +757,269 @@ int FFV::Initialize(int argc, char **argv)
       printf(     "\n\t#############  DRY RUN for DEBUGGING BC  #############\n\n");
     }
   }
+
+
+      //粒子プロセス宛に必要なパラメータを送信する
+      //
+      //DTの計算に必要なパラメータを送信
+      paraMngr->Bcast(pitch, 3, 0);
+      paraMngr->Bcast(&C.KindOfSolver, 1, 0);
+      paraMngr->Bcast(&C.Unit.Param, 1, 0);
+      paraMngr->Bcast(&C.Reynolds, 1, 0);
+      paraMngr->Bcast(&C.Peclet, 1, 0);
+
+      //Profiling設定フラグを送信
+      paraMngr->Bcast(&C.Mode.Profiling, 1, 0);
+
+      //CurrentTime, CurrentStepの送信
+      paraMngr->Bcast(&CurrentTime, 1, 0);
+      paraMngr->Bcast(&CurrentStep, 1, 0);
+
+      // C.Intervalsの値を送信
+      int ibuff[Control::tg_END];
+      for(int i=Control::tg_compute;i<Control::tg_END;i++)
+      {
+          ibuff[i]=C.Interval[i].getMode();
+      }
+
+      paraMngr->Bcast(ibuff, Control::tg_END, 0);
+      for(int i=Control::tg_compute;i<Control::tg_END;i++)
+      {
+          if(ibuff[i] == IntervalManager::By_step )
+          {
+              int ibuff2[3];
+              ibuff2[0]=C.Interval[i].getIntervalStep();
+              ibuff2[1]=C.Interval[i].getStartStep();
+              ibuff2[2]=C.Interval[i].getLastStep();
+              paraMngr->Bcast(ibuff2, 3, 0);
+          }else{
+              double dbuff[3];
+              dbuff[0]=C.Interval[i].getIntervalTime();
+              dbuff[1]=C.Interval[i].getStartTime();
+              dbuff[2]=C.Interval[i].getLastTime();
+              paraMngr->Bcast(dbuff, 3, 0);
+          }
+      }
+  } else {
+      //DTの設定
+      //getterで取得できる値だけからでは設定できないので
+      //一部の値はファイルから読み込んで初期化する
+      C.get1stParameter(&DT);
+      paraMngr->Bcast(pitch, 3, 0);
+      paraMngr->Bcast(&C.KindOfSolver, 1, 0);
+      paraMngr->Bcast(&C.Unit.Param, 1, 0);
+      paraMngr->Bcast(&C.Reynolds, 1, 0);
+      paraMngr->Bcast(&C.Peclet, 1, 0);
+      setParameters();
+
+
+
+      //Profiling設定フラグを受信
+      paraMngr->Bcast(&C.Mode.Profiling, 1, 0);
+      //PMlibのエラーを避けるため、とりあえず有効にしている。
+      //PMlibがプロセスグループ内で閉じることができるようになれば
+      //C.Mode.Profilingの通信も含めて無効化すれば良い
+      // タイミング測定の初期化
+      if ( C.Mode.Profiling != OFF )
+      {
+          ModeTiming = ON;
+          TIMING__ PM.initialize( PM_NUM_MAX );
+          TIMING__ PM.setRankInfo( paraMngr->GetMyRankID(0) );
+          std::string str_para=setParallelism();
+          C.num_process=paraMngr->GetNumRank();
+          TIMING__ PM.setParallelMode(str_para, C.num_thread, C.num_process);
+          set_timing_label();
+      }
+
+      //CurrentTime, CurrentStepの受信
+      paraMngr->Bcast(&CurrentTime, 1, 0);
+      paraMngr->Bcast(&CurrentStep, 1, 0);
+
+      //C.Intervalsの受信および設定
+      int ibuff[Control::tg_END];
+      paraMngr->Bcast(ibuff, Control::tg_END, 0);
+      for(int i=Control::tg_compute;i<Control::tg_END;i++)
+      {
+        C.Interval[i].setMode((IntervalManager::type_IO_spec)(ibuff[i]));
+      }
+      for(int i=Control::tg_compute;i<Control::tg_END;i++)
+      {
+          if(ibuff[i] == IntervalManager::By_step )
+          {
+              int ibuff2[3];
+              paraMngr->Bcast(ibuff2, 3, 0);
+              C.Interval[i].setInterval(ibuff2[0]);
+              C.Interval[i].setStart(ibuff2[1]);
+              C.Interval[i].setLast(ibuff2[2]);
+
+          }else{
+              double dbuff[3];
+              paraMngr->Bcast(dbuff, 3, 0);
+              C.Interval[i].setInterval(dbuff[0]);
+              C.Interval[i].setStart(dbuff[1]);
+              C.Interval[i].setLast(dbuff[2]);
+          }
+      }
+
+      // インターバルの初期化
+      double m_tm    = CurrentTime;
+      unsigned m_stp = CurrentStep;
+      double m_dt = DT.get_DT();
+
+      for (int i=Control::tg_compute; i<=Control::tg_accelra; i++)
+      {
+          if ( !C.Interval[i].initTrigger(m_stp, m_tm, m_dt) )
+          {
+              Hostonly_ printf("\t Error : initialize timing trigger [no=%d].\n", i);
+              Exit(0);
+          }
+      }
+
+      if ( C.SamplingMode == ON )
+      {
+          if ( !C.Interval[Control::tg_sampled].initTrigger(m_stp, m_tm, m_dt) )
+          {
+              Hostonly_ printf("\t Error : initialize timing trigger [tg_sampled].\n");
+              Exit(0);
+          }
+      }
+
+      //この後の処理で使うのでTscaleを設定
+      C.Tscale=C.RefLength/C.RefVelocity;
+
+      // セッションの最終ステップの取得
+      if ( C.Interval[Control::tg_compute].getMode() == IntervalManager::By_step )
+      {
+          Session_LastStep = C.Interval[Control::tg_compute].getLastStep();
+      }
+      else
+      {
+          Session_LastStep = (unsigned)ceil( C.Interval[Control::tg_compute].getLastTime() / (m_dt*C.Tscale) );
+      }
+  }
+
+
+  // LPTlib初期化処理 start
+  paraMngr->Barrier();
+  if ( IsMaster() ) printf("\n\tLPT Initialize start.\n\n");
+  LPT::LPT_InitializeArgs init_args;
+  init_args.argc              = argc;
+  init_args.argv              = argv;
+  init_args.FluidComm         = paraMngr->GetMPI_Comm(procGrp);
+  init_args.ParticleComm      = paraMngr->GetMPI_Comm(lpt_group_number);
+  init_args.OutputDimensional = C.Unit.Param == DIMENSIONAL;
+  init_args.RefLength         = C.RefLength;
+  init_args.RefVelocity       = C.RefVelocity;
+  init_args.CurrentTimeStep   = CurrentStep;
+  init_args.CurrentTime       = CurrentTime;
+
+  //これらの値はLPT_Initialize()内部で粒子プロセスに送信されるので
+  //流体プロセスのみ設定していればよい
+  if(paraMngr->GetMyRankID(procGrp) != MPI_PROC_NULL)
+  {
+      init_args.Nx               = G_size[0];
+      init_args.Ny               = G_size[1];
+      init_args.Nz               = G_size[2];
+      const int* divnum = paraMngr->GetDivNum(procGrp);
+      init_args.NPx              = divnum[0];
+      init_args.NPy              = divnum[1];
+      init_args.NPz              = divnum[2];
+      init_args.NBx              = size[0] < 10 ? 1 : size[0]/10;
+      init_args.NBy              = size[1] < 10 ? 1 : size[1]/10;
+      init_args.NBz              = size[2] < 10 ? 1 : size[2]/10;
+      init_args.dx               = pitch[0];
+      init_args.dy               = pitch[1];
+      init_args.dz               = pitch[2];
+      init_args.OriginX          = G_origin[0];
+      init_args.OriginY          = G_origin[1];
+      init_args.OriginZ          = G_origin[2];
+      init_args.GuideCellSize    = guide;
+      init_args.d_bcv            = d_bcd;
+  }
+
+
+  //開始点を定義
+  double StartTime=0.0;
+  double ReleaseTime=0.0;
+  double TimeSpan=DT.get_DT()/2;
+  double ParticleLifeTime=0;
+
+
+  /* Performance Test (just one rectangle)
+  REAL_TYPE Coord1[3]={0, 6, 6};
+  REAL_TYPE Coord2[3]={0,-6,-6};
+  int NumStartPoints[3]={1, 80, 80};
+  LPT::LPT::GetInstance()->LPT_SetStartPointRectangle(Coord1, Coord2, NumStartPoints, StartTime, ReleaseTime, TimeSpan, ParticleLifeTime);
+  */
+
+  /* Test for MovingPoints
+  ReleaseTime=0;
+  TimeSpan=0.05;
+  REAL_TYPE Coords[12]={0,-3,-3, 0,-3,3, 0,3,3, 0,3,-3};
+  double Time[4]={0, 0.1, 0.2, 0.3};
+  LPT::LPT::GetInstance()->LPT_SetStartPointMovingPoints(4, Coords,  Time, StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
+  */
+
+  //Test for StartPoint save/load
+  /*
+  */
+  REAL_TYPE Coord1[3]={0,0,0};
+  REAL_TYPE Coord2[3]={0,0,0};
+  int NumStartPoints[3];
+  LPT::LPT::GetInstance()->LPT_SetStartPoint(Coord1,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
+
+  Coord1[0]=0;
+  Coord1[1]=3;
+  Coord1[2]=-3;
+  Coord2[0]=0;
+  Coord2[1]=3;
+  Coord2[2]=0;
+  LPT::LPT::GetInstance()->LPT_SetStartPointLine(Coord1, Coord2, 5,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
+
+  Coord1[0]=0;
+  Coord1[1]=-3;
+  Coord1[2]=-3;
+  Coord2[0]=0;
+  Coord2[1]=-1;
+  Coord2[2]=-1;
+  NumStartPoints[0]=1;
+  NumStartPoints[1]=3;
+  NumStartPoints[2]=3;
+  LPT::LPT::GetInstance()->LPT_SetStartPointRectangle(Coord1, Coord2, NumStartPoints, StartTime, ReleaseTime, TimeSpan, ParticleLifeTime);
+
+  Coord1[0]=0;
+  Coord1[1]=-1;
+  Coord1[2]=1;
+  Coord2[0]=2;
+  Coord2[1]=-3;
+  Coord2[2]=3;
+  NumStartPoints[0]=3;
+  NumStartPoints[1]=3;
+  NumStartPoints[2]=3;
+  LPT::LPT::GetInstance()->LPT_SetStartPointCuboid(Coord1, Coord2, NumStartPoints,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
+
+  Coord1[0]=0;
+  Coord1[1]=1.5;
+  Coord1[2]=1.5;
+  REAL_TYPE Radius=1;
+  REAL_TYPE NormalVector[3]={1,0,0};
+  LPT::LPT::GetInstance()->LPT_SetStartPointCircle(Coord1, 10, Radius, NormalVector,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
+
+  REAL_TYPE Coords[9]={0, 1, -3, 0, 1, -2, 0, 1, -1};
+  double Time[3]={0,5,10};
+  LPT::LPT::GetInstance()->LPT_SetStartPointMovingPoints(3, Coords,  Time, StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
+
+
+
+
+  if ( IsMaster() ) printf("\n\tcall LPT_Initialize()\n\n");
+  //初期化
+  if(LPT::LPT::GetInstance()->LPT_Initialize(init_args) !=0)
+  {
+      std::cerr<<"LPT_Initialize failed!!"<<std::endl;
+  }
+  if ( IsMaster() ) printf("\n\tLPT Initialize end.\n\n");
+  // LPTlib初期化処理 end
 
   return 1;
 }
