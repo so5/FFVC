@@ -31,6 +31,7 @@ ffvc_CXXFLAGS = \
   @PM_CFLAGS@ \
   @TP_CFLAGS@ \
   @MPICH_CFLAGS@ \
+  @LPT_CFLAGS@ \
   @REALOPT@
 
 ffvc_SOURCES = main.C
@@ -52,6 +53,7 @@ ffvc_LDADD = \
   @MPICH_LDFLAGS@ \
   @MPICH_LIBS@ \
   @MPICH_FCLIBS@ \
+  @LPT_LDFLAGS@ \
   @FFVC_LIBS@
 
 EXTRA_DIST = Makefile_hand Makefile_ffvc depend.inc make_setting

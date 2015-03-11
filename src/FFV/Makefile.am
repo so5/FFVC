@@ -32,6 +32,7 @@ libFFV_a_CXXFLAGS = \
   @PM_CFLAGS@ \
   @TP_CFLAGS@ \
   @MPICH_CFLAGS@ \
+  @LPT_CFLAGS@ \
   @REALOPT@
 
 libFFV_a_SOURCES = \

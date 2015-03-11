@@ -44,6 +44,9 @@ int FFV::Loop(const unsigned step)
   CurrentTime += DT.get_DT(); // 戻り値はdouble
   CurrentStep++;
   
+  //終了判定までの処理は流体プロセスのみが実行
+  if(paraMngr->GetMyRankID(procGrp) != MPI_PROC_NULL)
+  {
   
   // 参照座標速度をv00に保持する
   RF.setV00(CurrentTime);
@@ -456,6 +459,7 @@ int FFV::Loop(const unsigned step)
   }
   
   TIMING_stop("Loop_Utility_Section", 0.0);
+  }
   TIMING_stop("Time_Step_Loop_Section", 0.0);
   
   
