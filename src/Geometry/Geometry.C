@@ -64,7 +64,7 @@ unsigned long Geometry::assignVF(const int target, const REAL_TYPE value, const 
   if ( numProc > 1 )
   {
     unsigned long c_tmp = c;
-    if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   return c;
@@ -552,7 +552,7 @@ unsigned long Geometry::countCellB(const int* bcd, const int m_id, const bool pa
   if ( numProc > 1 )
   {
     unsigned long c_tmp = c;
-    if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   return c;
@@ -627,7 +627,7 @@ unsigned long Geometry::countCellM(const int* mid,
     if ( numProc > 1 )
     {
       unsigned long c_tmp = c;
-      if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+      if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
     }
   }
   
@@ -667,7 +667,7 @@ bool Geometry::fill(int* d_bcd,
   if ( numProc > 1 )
   {
     unsigned long tmp_fc = total_cell;
-    if ( paraMngr->Allreduce(&tmp_fc, &total_cell, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&tmp_fc, &total_cell, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   
@@ -789,7 +789,7 @@ bool Geometry::fillConnected(int* d_bcd,
 
   if ( numProc > 1 )
   {
-    if ( paraMngr->BndCommS3D(d_bcd, ix, jx, kx, gd, gd) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_bcd, ix, jx, kx, gd, gd, procGrp) != CPM_SUCCESS ) Exit(0);
   }
 
   
@@ -823,7 +823,7 @@ bool Geometry::fillConnected(int* d_bcd,
     
     if ( numProc > 1 )
     {
-      if ( paraMngr->BndCommS3D(d_bcd, ix, jx, kx, gd, gd) != CPM_SUCCESS ) Exit(0);
+      if ( paraMngr->BndCommS3D(d_bcd, ix, jx, kx, gd, gd, procGrp) != CPM_SUCCESS ) Exit(0);
     }
     
     target_count -= filled;
@@ -1005,7 +1005,7 @@ schedule(static) reduction(+:filled)
   if ( numProc > 1 )
   {
     unsigned long tmp = filled;
-    if ( paraMngr->Allreduce(&tmp, &filled, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&tmp, &filled, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   return filled;
@@ -1064,9 +1064,9 @@ unsigned long Geometry::fillFluidRegion(int* mid, const int* bcd)
   if ( numProc > 1 )
   {
     unsigned long c_tmp = c;
-    if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&c_tmp, &c, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
     
-    if ( paraMngr->BndCommS3D(mid, ix, jx, kx, gd, gd) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(mid, ix, jx, kx, gd, gd, procGrp) != CPM_SUCCESS ) Exit(0);
   }
 
   

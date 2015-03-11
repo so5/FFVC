@@ -174,7 +174,7 @@ int FFV::Initialize(int argc, char **argv)
   {
     ModeTiming = ON;
     TIMING__ PM.initialize( PM_NUM_MAX );
-    TIMING__ PM.setRankInfo( paraMngr->GetMyRankID() );
+    TIMING__ PM.setRankInfo( paraMngr->GetMyRankID(procGrp) );
     TIMING__ PM.setParallelMode(str_para, C.num_thread, C.num_process);
     set_timing_label();
   }
@@ -402,9 +402,9 @@ int FFV::Initialize(int argc, char **argv)
   // bcd/bcp/cdfの同期
   if ( numProc > 1 )
   {
-    if ( paraMngr->BndCommS3D(d_bcd, size[0], size[1], size[2], guide, 1) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->BndCommS3D(d_bcp, size[0], size[1], size[2], guide, 1) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->BndCommS3D(d_cdf, size[0], size[1], size[2], guide, 1) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_bcd, size[0], size[1], size[2], guide, 1, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_bcp, size[0], size[1], size[2], guide, 1, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_cdf, size[0], size[1], size[2], guide, 1, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   
@@ -780,8 +780,8 @@ bool FFV::chkMediumConsistency()
   {
     int nms = nmSolid;
     int nmf = nmFluid;
-    paraMngr->Allreduce(&nms, &nmSolid, 1, MPI_SUM);
-    paraMngr->Allreduce(&nmf, &nmFluid, 1, MPI_SUM);
+    paraMngr->Allreduce(&nms, &nmSolid, 1, MPI_SUM, procGrp);
+    paraMngr->Allreduce(&nmf, &nmFluid, 1, MPI_SUM, procGrp);
   }
   
   if ( (nmFluid == 0) && (nmSolid == 0) )
@@ -1193,7 +1193,7 @@ void FFV::displayMemoryInfo(FILE* fp, double G_mem, double L_mem, const char* st
   if ( numProc > 1 )
   {
     double tmp_memory = G_mem;
-    if ( paraMngr->Allreduce(&tmp_memory, &G_mem, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&tmp_memory, &G_mem, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   Hostonly_
@@ -1283,7 +1283,7 @@ void FFV::encodeBCindex(FILE* fp)
   // @attention bx[]の同期が必要 >> 以下の処理で隣接セルを参照するため
   if ( numProc > 1 )
   {
-    if ( paraMngr->BndCommS3D(d_bcd, ix, jx, kx, gd, 1) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_bcd, ix, jx, kx, gd, 1, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   BC.setBCIperiodic(d_bcd, ensPeriodic);
@@ -1394,12 +1394,12 @@ void FFV::gatherDomainInfo()
   // 領域情報の収集
   if ( numProc > 1 )
   {
-    if ( paraMngr->Gather(size, 3, m_size, 3, 0) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->Gather(origin, 3, m_org, 3, 0) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->Gather(region, 3, m_reg, 3, 0) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->Gather(&L_Fcell, 1, bf_fcl, 1, 0) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->Gather(&L_Wcell, 1, bf_wcl, 1, 0) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->Gather(&L_Acell, 1, bf_acl, 1, 0) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Gather(size, 3, m_size, 3, 0, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Gather(origin, 3, m_org, 3, 0, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Gather(region, 3, m_reg, 3, 0, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Gather(&L_Fcell, 1, bf_fcl, 1, 0, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Gather(&L_Wcell, 1, bf_wcl, 1, 0, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Gather(&L_Acell, 1, bf_acl, 1, 0, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   else // serial
   {
@@ -1433,7 +1433,7 @@ void FFV::gatherDomainInfo()
   
   if ( numProc > 1 )
   {
-    if ( paraMngr->Gather(&m_srf, 1, bf_srf, 1, 0) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Gather(&m_srf, 1, bf_srf, 1, 0, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   else 
   {
@@ -1514,8 +1514,8 @@ void FFV::gatherDomainInfo()
       {
         if ( !cmp[n].isKindMedium() )
         {
-          if( paraMngr->Gather(cmp[n].getBbox_st(), 3, st_buf, 3, 0) != CPM_SUCCESS ) Exit(0);
-          if( paraMngr->Gather(cmp[n].getBbox_ed(), 3, ed_buf, 3, 0) != CPM_SUCCESS ) Exit(0);
+          if( paraMngr->Gather(cmp[n].getBbox_st(), 3, st_buf, 3, 0, procGrp) != CPM_SUCCESS ) Exit(0);
+          if( paraMngr->Gather(cmp[n].getBbox_ed(), 3, ed_buf, 3, 0, procGrp) != CPM_SUCCESS ) Exit(0);
         }
         Hostonly_
         {
@@ -1682,7 +1682,7 @@ void FFV::generateGlyph(const long long* cut, const int* bid, FILE* fp, int* m_s
   if ( numProc > 1 )
   {
     unsigned tmp = global_cut;
-    if ( paraMngr->Allreduce(&tmp, &global_cut, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&tmp, &global_cut, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   Hostonly_
@@ -2953,13 +2953,13 @@ void FFV::setInitialCondition()
   // 初期解およびリスタート解の同期
   if ( numProc > 1 )
   {
-    if ( paraMngr->BndCommV3D(d_v,  size[0], size[1], size[2], guide, guide) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->BndCommV3D(d_vf, size[0], size[1], size[2], guide, guide) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->BndCommS3D(d_p,  size[0], size[1], size[2], guide, 1    ) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommV3D(d_v,  size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommV3D(d_vf, size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_p,  size[0], size[1], size[2], guide, 1    , procGrp) != CPM_SUCCESS ) Exit(0);
     
     if ( C.isHeatProblem() ) 
     {
-      if ( paraMngr->BndCommS3D(d_p, size[0], size[1], size[2], guide, guide) != CPM_SUCCESS ) Exit(0);
+      if ( paraMngr->BndCommS3D(d_p, size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
     }
   }
 
@@ -2970,7 +2970,7 @@ void FFV::setInitialCondition()
     
     if ( numProc > 1 )
     {
-      if ( paraMngr->BndCommS3D(d_vof, size[0], size[1], size[2], guide, guide) != CPM_SUCCESS ) Exit(0);
+      if ( paraMngr->BndCommS3D(d_vof, size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
     }
   }
   
@@ -3115,9 +3115,9 @@ void FFV::setModel(double& PrepMemory, double& TotalMemory, FILE* fp)
   // ガイドセル同期
   if ( numProc > 1 )
   {
-    if ( paraMngr->BndCommS3D(d_bcd, size[0], size[1], size[2], guide, 1) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->BndCommS3D(d_bid, size[0], size[1], size[2], guide, 1) != CPM_SUCCESS ) Exit(0);
-    if ( paraMngr->BndCommS3D(d_cut, size[0], size[1], size[2], guide, 1) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_bcd, size[0], size[1], size[2], guide, 1, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_bid, size[0], size[1], size[2], guide, 1, procGrp) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->BndCommS3D(d_cut, size[0], size[1], size[2], guide, 1, procGrp) != CPM_SUCCESS ) Exit(0);
   }
 
 }
