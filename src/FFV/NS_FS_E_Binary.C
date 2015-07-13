@@ -250,7 +250,7 @@ void FFV::NS_FS_E_Binary()
     if ( numProc > 1 )
     {
       int tmp = ct;
-      if ( paraMngr->Allreduce(&tmp, &ct, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+      if ( paraMngr->Allreduce(&tmp, &ct, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
     }
     Hostonly_ printf("stabilize = %d\n", ct);
   }

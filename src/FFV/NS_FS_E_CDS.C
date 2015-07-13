@@ -290,13 +290,8 @@ void FFV::NS_FS_E_CDS()
   if ( numProc > 1 )
   {
     TIMING_start("A_R_Poisson_Src_L2");
-<<<<<<< HEAD
     double m_tmp = b_l2;
-    if ( paraMngr->Allreduce(&m_tmp, &b_l2, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
-=======
-    double m_tmp = rhs_nrm;
-    if ( paraMngr->Allreduce(&m_tmp, &rhs_nrm, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
->>>>>>> divide process group
+    if ( paraMngr->Allreduce(&m_tmp, &b_l2, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
     TIMING_stop("A_R_Poisson_Src_L2", 2.0*numProc*sizeof(double) ); // 双方向 x ノード数
   }
   
@@ -317,13 +312,8 @@ void FFV::NS_FS_E_CDS()
     if ( numProc > 1 )
     {
       TIMING_start("A_R_Poisson_Init_Res_L2");
-<<<<<<< HEAD
       double m_tmp = res0_l2;
-      if ( paraMngr->Allreduce(&m_tmp, &res0_l2, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
-=======
-      double m_tmp = res_init;
-      if ( paraMngr->Allreduce(&m_tmp, &res_init, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
->>>>>>> divide process group
+      if ( paraMngr->Allreduce(&m_tmp, &res0_l2, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
       TIMING_stop("A_R_Poisson_Init_Res_L2", 2.0*numProc*sizeof(double) ); // 双方向 x ノード数
     }
     

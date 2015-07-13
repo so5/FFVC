@@ -475,7 +475,7 @@ int FFV::Loop(const unsigned step)
   if ( numProc > 1 )
   {
     int tmp = isNormal;
-    if ( paraMngr->Allreduce(&tmp, &isNormal, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&tmp, &isNormal, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   

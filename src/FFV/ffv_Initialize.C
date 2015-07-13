@@ -992,8 +992,8 @@ void FFV::dispGlobalCompoInfo(FILE* fp)
       if ( numProc > 1 )
       {
         es = ( cmp[n].existLocal() ) ? 1 : 0;
-        if ( paraMngr->Gather(&es, 1, m_eArray, 1, 0) != CPM_SUCCESS ) Exit(0);
-        if ( paraMngr->Gather(&cgb[6*n], 6, m_gArray, 6, 0) != CPM_SUCCESS ) Exit(0);
+        if ( paraMngr->Gather(&es, 1, m_eArray, 1, 0, procGrp) != CPM_SUCCESS ) Exit(0);
+        if ( paraMngr->Gather(&cgb[6*n], 6, m_gArray, 6, 0, procGrp) != CPM_SUCCESS ) Exit(0);
         
         
         if (myRank == 0) // マスターノードのみ
@@ -2841,7 +2841,7 @@ string FFV::setDomain(TextParser* tpf)
   if ( numProc > 1 )
   {
     double tmp = c;
-    if ( paraMngr->Allreduce(&tmp, &c, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+    if ( paraMngr->Allreduce(&tmp, &c, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
   }
   
   face_comm_size = c;
@@ -3200,7 +3200,7 @@ string FFV::setParallelism()
   // Serial or Parallel environment
   if( paraMngr->IsParallel() )
   {
-    C.num_process = paraMngr->GetNumRank();
+    C.num_process = paraMngr->GetNumRank(procGrp);
     
     if ( C.num_thread > 1 ) 
     {
@@ -3665,7 +3665,7 @@ void FFV::SD_Initialize(const int div_type, TextParser* tp_dom)
     switch (div_type)
     {
       case 1: // 分割数が指示されている場合
-        if ( paraMngr->VoxelInit(m_div, m_sz, m_org, m_reg, Nvc, Ncmp) != CPM_SUCCESS )
+        if ( paraMngr->VoxelInit(m_div, m_sz, m_org, m_reg, Nvc, Ncmp, procGrp) != CPM_SUCCESS )
         {
           cout << "Domain decomposition error : " << endl;
           Exit(0);
@@ -3674,7 +3674,7 @@ void FFV::SD_Initialize(const int div_type, TextParser* tp_dom)
         
       
       case 2: // 分割数が指示されていない場合
-        if ( paraMngr->VoxelInit(m_sz, m_org, m_reg, Nvc, Ncmp) != CPM_SUCCESS )
+        if ( paraMngr->VoxelInit(m_sz, m_org, m_reg, Nvc, Ncmp, procGrp) != CPM_SUCCESS )
         {
           cout << "Domain decomposition error : " << endl;
           Exit(0);
@@ -3689,7 +3689,7 @@ void FFV::SD_Initialize(const int div_type, TextParser* tp_dom)
   }
   else if ( EXEC_MODE == ffvc_solverAS )
   {
-    if ( paraMngr->VoxelInit_Subdomain(m_div, m_sz, m_org, m_reg, active_fname, Nvc, Ncmp) != CPM_SUCCESS )
+    if ( paraMngr->VoxelInit_Subdomain(m_div, m_sz, m_org, m_reg, active_fname, Nvc, Ncmp, procGrp) != CPM_SUCCESS )
     {
       cout << "Domain decomposition error : " << endl;
       Exit(0);
@@ -3885,10 +3885,10 @@ void FFV::SM_Polygon2Cut(double& m_prep, double& m_total, FILE* fp)
     if ( numProc > 1 )
     {
       int tmp = ntria;
-      if ( paraMngr->Allreduce(&tmp, &ntria, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+      if ( paraMngr->Allreduce(&tmp, &ntria, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
       
       REAL_TYPE ta = area;
-      if ( paraMngr->Allreduce(&ta, &area, 1, MPI_SUM) != CPM_SUCCESS ) Exit(0);
+      if ( paraMngr->Allreduce(&ta, &area, 1, MPI_SUM, procGrp) != CPM_SUCCESS ) Exit(0);
     }
     
     
