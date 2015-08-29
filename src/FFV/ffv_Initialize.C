@@ -3839,7 +3839,7 @@ void FFV::SM_Polygon2Cut(double& m_prep, double& m_total, FILE* fp)
   
   
   // 読み込むデータはオリジナルのまま >> Polylib管理のメソッドで検索などを行うため
-  poly_stat = PL->init_parallel_info(MPI_COMM_WORLD,
+  poly_stat = PL->init_parallel_info(paraMngr->GetMPI_Comm(procGrp),
                                      originD,           // 自ランクの基点座標
                                      (unsigned*)size,   // 自ランクの分割数
                                      poly_gc,           // ガイドセル数
