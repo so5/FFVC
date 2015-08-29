@@ -173,11 +173,9 @@ int FFV::Initialize(int argc, char **argv)
   }
 
 
-  std::cerr<<"DEBUG Process divided!"<<endl;
   //以降の処理は流体プロセスのみが実行
   if(paraMngr->GetMyRankID(procGrp) != MPI_PROC_NULL)
   {
-  std::cerr<<"DEBUG F 1"<<endl;
 
   // パラメータの取得と計算領域の初期化，並列モードを返す
   // Polylibの基準値も設定
@@ -323,7 +321,6 @@ int FFV::Initialize(int argc, char **argv)
   }
   */
   
-  std::cerr<<"DEBUG F 2"<<endl;
   
   // Fill
   Hostonly_
@@ -453,7 +450,6 @@ int FFV::Initialize(int argc, char **argv)
   // 時間積分幅 deltaT や物理パラメータの設定
   setParameters();
 
-  std::cerr<<"DEBUG F 3"<<endl;
   
   // 必要なパラメータをSetBC3Dクラスオブジェクトにコピーする >> setParameters()の後
   BC.setControlVars(&C, mat, &RF, Ex);
@@ -596,12 +592,10 @@ int FFV::Initialize(int argc, char **argv)
   TIMING_stop("Restart_Process");
   
   
-  std::cerr<<"DEBUG F 4"<<endl;
   // 制御インターバルの初期化
   initInterval();
   
 
-  std::cerr<<"DEBUG F 41"<<endl;
   // 統計値のリスタート
   if ( C.Mode.StatisticRestart == ON )
   {
@@ -610,7 +604,6 @@ int FFV::Initialize(int argc, char **argv)
     TIMING_stop("Restart_Process");
   }
   
-  std::cerr<<"DEBUG F 42"<<endl;
 
   // リスタートの最大値と最小値の表示
   if ( C.Start != initial_start )
@@ -618,7 +611,6 @@ int FFV::Initialize(int argc, char **argv)
     F->RestartDisplayMinmax(fp, flop_task);
   }
   
-  std::cerr<<"DEBUG F 43"<<endl;
   
   // コンポーネントの統計値のリスタート
   if ( C.Mode.StatisticRestart == ON && num_obstacle > 0 )
@@ -651,18 +643,15 @@ int FFV::Initialize(int argc, char **argv)
   C.ver_TP  = tp_ffv.getVersionInfo();
   
 
-  std::cerr<<"DEBUG F 44"<<endl;
   
   // ドライバ条件のチェック
   BC.checkDriver(fp);
   
-  std::cerr<<"DEBUG F 45"<<endl;
 
   
   // 初期条件の条件設定
   setInitialCondition();
   
-  std::cerr<<"DEBUG F 46"<<endl;
 
   // サンプリング元となるデータ配列の登録
   if ( C.SamplingMode == ON ) 
@@ -671,7 +660,6 @@ int FFV::Initialize(int argc, char **argv)
   }
 
   
-  std::cerr<<"DEBUG F 47"<<endl;
   
   // CellIDとBCflagの出力 (guide cell=0)
   // 戻り値：全セルが同じ値cの場合にはcの値が戻り、異なるセルの値が存在する場合には-1
@@ -681,7 +669,6 @@ int FFV::Initialize(int argc, char **argv)
   // 出力ファイルの初期化
   F->initFileOut(id_cell, id_bcf);
   
-  std::cerr<<"DEBUG F 48"<<endl;
   
   // debug: obsolete format
   //F->writeSVX(d_bcd);
@@ -691,7 +678,6 @@ int FFV::Initialize(int argc, char **argv)
   if ( d_mid ) delete [] d_mid;
   
   
-  std::cerr<<"DEBUG F 49"<<endl;
   
   
   
@@ -708,7 +694,6 @@ int FFV::Initialize(int argc, char **argv)
     }
   }
 
-  std::cerr<<"DEBUG F 50"<<endl;
   
   // 粗い格子を用いたリスタート時には出力
   if ( (C.Start == restart_sameDiv_refinement) || (C.Start == restart_diffDiv_refinement) )
@@ -717,7 +702,6 @@ int FFV::Initialize(int argc, char **argv)
     F->OutputBasicVariables(CurrentStep, CurrentTime, flop_task);
   }
 
-  std::cerr<<"DEBUG F 51"<<endl;
   
   // セルフェイス速度から領域境界平均速度を求める
   for (int face=0; face<NOFACE; face++)
@@ -729,12 +713,10 @@ int FFV::Initialize(int argc, char **argv)
     T->setDomainMF(vsum);
   }
 
-  std::cerr<<"DEBUG F 52"<<endl;
 
   // 反復法クラスの初期化
   LS_initialize(TotalMemory, &tp_ffv);
   
-  std::cerr<<"DEBUG F 53"<<endl;
   
   // 制御パラメータ，物理パラメータの表示
   Hostonly_
@@ -743,7 +725,6 @@ int FFV::Initialize(int argc, char **argv)
   }
   
   
-  std::cerr<<"DEBUG F 54"<<endl;
   // メモリ使用量の表示
   Hostonly_
   {
@@ -751,7 +732,6 @@ int FFV::Initialize(int argc, char **argv)
     fprintf(fp,"\n----------\n\n");
   }
   
-  std::cerr<<"DEBUG F 5"<<endl;
   G_TotalMemory = TotalMemory;
   
   displayMemoryInfo(fp, G_TotalMemory, TotalMemory, "Solver");
@@ -829,9 +809,7 @@ int FFV::Initialize(int argc, char **argv)
               paraMngr->Bcast(dbuff, 3, 0);
           }
       }
-  std::cerr<<"DEBUG F 6"<<endl;
   } else {
-  std::cerr<<"DEBUG P 1 "<<endl;
       //DTの設定
       //getterで取得できる値だけからでは設定できないので
       //一部の値はファイルから読み込んで初期化する
@@ -927,10 +905,7 @@ int FFV::Initialize(int argc, char **argv)
       {
           Session_LastStep = (unsigned)ceil( C.Interval[Control::tg_compute].getLastTime() / (m_dt*C.Tscale) );
       }
-  std::cerr<<"DEBUG P 2 "<<endl;
   }
-  std::cerr<<"DEBUG LPT initialize start "<<endl;
-
 
   // LPTlib初期化処理 start
   paraMngr->Barrier();
@@ -3189,87 +3164,67 @@ string FFV::setDomain(TextParser* tpf)
 // @brief 初期条件の設定
 void FFV::setInitialCondition()
 {
-  std::cerr<<"DEBUG setInitialCondition 1"<<endl;
   double flop_task;
   Gemini_R* m_buf = new Gemini_R [C.NoCompo+1];
   
   double tm = CurrentTime * C.Tscale;
-  std::cerr<<"DEBUG setInitialCondition 2"<<endl;
   
   
   if ( C.Start == initial_start )
   {
-  std::cerr<<"DEBUG setInitialCondition 3"<<endl;
 		REAL_TYPE U0[3];
     
 		// 速度の初期条件の設定
     if (C.Unit.Param == DIMENSIONAL)
     {
-  std::cerr<<"DEBUG setInitialCondition 4"<<endl;
       U0[0] = C.iv.VecU/C.RefVelocity;
       U0[1] = C.iv.VecV/C.RefVelocity;
       U0[2] = C.iv.VecW/C.RefVelocity;
     }
     else
     {
-  std::cerr<<"DEBUG setInitialCondition 5"<<endl;
       U0[0] = C.iv.VecU;
       U0[1] = C.iv.VecV;
       U0[2] = C.iv.VecW;
     }
 		fb_set_vector_(d_v, size, &guide, U0, d_bcd);
-  std::cerr<<"DEBUG setInitialCondition 6"<<endl;
     fb_set_fvector_(d_vf, size, &guide, U0, d_bcd);
-  std::cerr<<"DEBUG setInitialCondition 7"<<endl;
     
     
     // LESの初期擾乱
     if (C.LES.InitialPerturbation == ON)
     {
-  std::cerr<<"DEBUG setInitialCondition 8"<<endl;
       perturbation();
     }
     
-  std::cerr<<"DEBUG setInitialCondition 9"<<endl;
     
     // セルフェイスの設定　発散値は関係なし
     BC.modDivergence(d_dv, d_cdf, CurrentTime, &C, v00, m_buf, flop_task);
     
-  std::cerr<<"DEBUG setInitialCondition 10"<<endl;
     
     
 		// 外部境界面の移流速度を計算し，外部境界条件を設定
 		BC.OuterVBC(d_v, d_vf, d_cdf, tm, &C, v00, ensPeriodic);
-  std::cerr<<"DEBUG setInitialCondition 11"<<endl;
     BC.InnerVBCperiodic(d_v, d_bcd);
-  std::cerr<<"DEBUG setInitialCondition 12"<<endl;
     
 
 		// 圧力
     REAL_TYPE ip;
     if (C.Unit.Param == DIMENSIONAL)
     {
-  std::cerr<<"DEBUG setInitialCondition 13"<<endl;
       ip = FBUtility::convPrsD2ND(C.iv.Pressure, C.BasePrs, C.RefDensity, C.RefVelocity, C.Unit.Prs);
-  std::cerr<<"DEBUG setInitialCondition 14"<<endl;
     }
     else
     {
-  std::cerr<<"DEBUG setInitialCondition 15"<<endl;
       ip = C.iv.Pressure;
-  std::cerr<<"DEBUG setInitialCondition 16"<<endl;
     }
 
-  std::cerr<<"DEBUG setInitialCondition 17"<<endl;
     U.initS3D(d_p, size, guide, ip);
-  std::cerr<<"DEBUG setInitialCondition 18"<<endl;
 		BC.OuterPBC(d_p, ensPeriodic);
-  std::cerr<<"DEBUG setInitialCondition 19"<<endl;
 
 		// 温度　コンポーネントの初期値
 		if ( C.isHeatProblem() )
     {
-  std::cerr<<"DEBUG setInitialCondition 20"<<endl;
       for (int m=1; m<=C.NoCompo; m++) // Mediumでまわすと，オーダーがエンコードされていない場合もある
       {
         BC.setInitialTempCompo(m, d_bcd, d_ie);
@@ -3278,70 +3233,56 @@ void FFV::setInitialCondition()
 			BC.OuterTBCperiodic(d_ie, ensPeriodic);
 		}
     
-  std::cerr<<"DEBUG setInitialCondition 21"<<endl;
   }
   else // リスタート時
   {
-  std::cerr<<"DEBUG setInitialCondition 22"<<endl;
     // 内部境界条件
     BC.InnerVBCperiodic(d_v, d_bcd);
-  std::cerr<<"DEBUG setInitialCondition 23"<<endl;
     BC.InnerPBCperiodic(d_p, d_bcd);
-  std::cerr<<"DEBUG setInitialCondition 24"<<endl;
     
     // 外部境界条件
     BC.OuterVBC(d_v, d_vf, d_cdf, tm, &C, v00, ensPeriodic);
-  std::cerr<<"DEBUG setInitialCondition 25"<<endl;
     
     // 流出境界の流出速度の算出
     BC.modDivergence(d_ws, d_cdf, CurrentTime, &C, v00, m_buf, flop_task);
-  std::cerr<<"DEBUG setInitialCondition 26"<<endl;
 
     //if ( C.isHeatProblem() ) BC.InnerTBC_Periodic()
     
   }
   
-  std::cerr<<"DEBUG setInitialCondition 27"<<endl;
   
   
   // 外部境界面の流出流量と移流速度
   DomainMonitor( BC.exportOBC(), &C);
 
-  std::cerr<<"DEBUG setInitialCondition 28"<<endl;
   
   
   // 初期解およびリスタート解の同期
   if ( numProc > 1 )
   {
-  std::cerr<<"DEBUG setInitialCondition 29"<<endl;
     if ( paraMngr->BndCommV3D(d_v,  size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
     if ( paraMngr->BndCommV3D(d_vf, size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
     if ( paraMngr->BndCommS3D(d_p,  size[0], size[1], size[2], guide, 1    , procGrp) != CPM_SUCCESS ) Exit(0);
     
     if ( C.isHeatProblem() ) 
     {
-  std::cerr<<"DEBUG setInitialCondition 30"<<endl;
       if ( paraMngr->BndCommS3D(d_p, size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
     }
-  std::cerr<<"DEBUG setInitialCondition 31"<<endl;
   }
 
   // VOF
   if ( C.BasicEqs == INCMP_2PHASE )
   {
-  std::cerr<<"DEBUG setInitialCondition 32"<<endl;
     setVOF();
     
     if ( numProc > 1 )
     {
-  std::cerr<<"DEBUG setInitialCondition 33"<<endl;
       if ( paraMngr->BndCommS3D(d_vof, size[0], size[1], size[2], guide, guide, procGrp) != CPM_SUCCESS ) Exit(0);
     }
   }
   
   // 後始末
   if ( m_buf ) { delete [] m_buf; m_buf=NULL; }
-  std::cerr<<"DEBUG setInitialCondition 34"<<endl;
 }
 
 
