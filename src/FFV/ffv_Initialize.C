@@ -143,8 +143,7 @@ int FFV::Initialize(int argc, char **argv)
   
   //LPT用のプロセスグループの分割および設定
   int nproc_for_ffv=paraMngr->GetNumRank();
-  std::string label = "/MPI/NumberOfProcs";
-  
+  std::string label = "/LPT/NumberOfProcsForFFV";
   if ( !(tp_ffv.getInspectedValue(label, nproc_for_ffv)) )
   {
     Exit(0);
@@ -158,9 +157,8 @@ int FFV::Initialize(int argc, char **argv)
   delete [] proclist;
   setRankInfo(paraMngr, ffv_group_number);
 
-  int lpt_group_number=ffv_group_number;
   const int nproc_for_lpt=paraMngr->GetNumRank()-nproc_for_ffv;
-  //FFVがCOMM_WORLD内の全プロセスを使っていない場合のみ、LPT用のコミュニケータを作成
+  int lpt_group_number=-1;
   if(nproc_for_lpt > 0)
   {
       int* proclist = new int [nproc_for_lpt];
@@ -170,6 +168,9 @@ int FFV::Initialize(int argc, char **argv)
       }
       lpt_group_number=paraMngr->CreateProcessGroup(nproc_for_lpt, proclist);
       delete [] proclist;
+  }else{
+    //FFV用のプロセス数がCOMM_WORLD内のプロセス数と一致した時はSPMDモード
+    lpt_group_number=ffv_group_number;
   }
 
 
@@ -209,8 +210,9 @@ int FFV::Initialize(int argc, char **argv)
   {
     ModeTiming = ON;
     TIMING__ PM.initialize( PM_NUM_MAX );
-    TIMING__ PM.setRankInfo( paraMngr->GetMyRankID(procGrp) );
-    TIMING__ PM.setParallelMode(str_para, C.num_thread, C.num_process);
+    TIMING__ PM.setRankInfo( paraMngr->GetMyRankID(0) );
+    //MPI_COMM_WORLD内のプロセス数を渡す
+    TIMING__ PM.setParallelMode(str_para, C.num_thread, paraMngr->GetNumRank(0));
     set_timing_label();
   }
   
@@ -822,13 +824,10 @@ int FFV::Initialize(int argc, char **argv)
       setParameters();
 
 
-
       //Profiling設定フラグを受信
       paraMngr->Bcast(&C.Mode.Profiling, 1, 0);
-      //PMlibのエラーを避けるため、とりあえず有効にしている。
-      //PMlibがプロセスグループ内で閉じることができるようになれば
-      //C.Mode.Profilingの通信も含めて無効化すれば良い
-      // タイミング測定の初期化
+      //PMlibの仕様上全プロセスが1つのインスタンスを共用する必要があるので
+      //粒子計算プロセス側でも初期化している
       if ( C.Mode.Profiling != OFF )
       {
           ModeTiming = ON;
@@ -915,113 +914,58 @@ int FFV::Initialize(int argc, char **argv)
   init_args.argv              = argv;
   init_args.FluidComm         = paraMngr->GetMPI_Comm(procGrp);
   init_args.ParticleComm      = paraMngr->GetMPI_Comm(lpt_group_number);
-  init_args.OutputDimensional = C.Unit.Param == DIMENSIONAL;
+  init_args.OutputDimensional = (C.Unit.Param == DIMENSIONAL);
   init_args.RefLength         = C.RefLength;
   init_args.RefVelocity       = C.RefVelocity;
   init_args.CurrentTimeStep   = CurrentStep;
   init_args.CurrentTime       = CurrentTime;
+  init_args.PM                = &PM;
+  init_args.MigrateOnRestart  = true;
+
+  label        = "/LPT/FileOutputInterval";
+  int interval = 0;
+  if ( !(tp_ffv.getInspectedValue(label, interval)) )
+  {
+    Exit(0);
+  }
+  init_args.FileOutputInterval=interval;
 
   //これらの値はLPT_Initialize()内部で粒子プロセスに送信されるので
   //流体プロセスのみ設定していればよい
   if(paraMngr->GetMyRankID(procGrp) != MPI_PROC_NULL)
   {
-      init_args.Nx               = G_size[0];
-      init_args.Ny               = G_size[1];
-      init_args.Nz               = G_size[2];
-      const int* divnum = paraMngr->GetDivNum(procGrp);
-      init_args.NPx              = divnum[0];
-      init_args.NPy              = divnum[1];
-      init_args.NPz              = divnum[2];
-      init_args.NBx              = size[0] < 10 ? 1 : size[0]/10;
-      init_args.NBy              = size[1] < 10 ? 1 : size[1]/10;
-      init_args.NBz              = size[2] < 10 ? 1 : size[2]/10;
-      init_args.dx               = pitch[0];
-      init_args.dy               = pitch[1];
-      init_args.dz               = pitch[2];
-      init_args.OriginX          = G_origin[0];
-      init_args.OriginY          = G_origin[1];
-      init_args.OriginZ          = G_origin[2];
-      init_args.GuideCellSize    = guide;
-      init_args.d_bcv            = d_bcd;
+      init_args.Nx            = G_size[0];
+      init_args.Ny            = G_size[1];
+      init_args.Nz            = G_size[2];
+      const int* divnum       = paraMngr->GetDivNum(procGrp);
+      init_args.NPx           = divnum[0];
+      init_args.NPy           = divnum[1];
+      init_args.NPz           = divnum[2];
+      init_args.NBx           = size[0] < 10 ? 1 : size[0]/10;
+      init_args.NBy           = size[1] < 10 ? 1 : size[1]/10;
+      init_args.NBz           = size[2] < 10 ? 1 : size[2]/10;
+      init_args.dx            = pitch[0];
+      init_args.dy            = pitch[1];
+      init_args.dz            = pitch[2];
+      init_args.OriginX       = G_origin[0];
+      init_args.OriginY       = G_origin[1];
+      init_args.OriginZ       = G_origin[2];
+      init_args.GuideCellSize = guide;
+      init_args.d_bcv         = d_bcd;
+      init_args.d_cut         = d_cut;
   }
 
 
-  //開始点を定義
-  LPT::LP::GetInstance()->LPT_SetStartPoinFromFile("LPT_StartPoints.txt");
-  /*
-  double StartTime=0.0;
-  double ReleaseTime=0.0;
-  double TimeSpan=DT.get_DT()/2;
-  double ParticleLifeTime=0;
-  */
+  //開始点設定をファイルから読み込む
+  std::string StartPointFilename="";
+  label="/LPT/StartPointFilename";
+  if ( !(tp_ffv.getInspectedValue(label, StartPointFilename)) )
+  {
+    Exit(0);
+  }
+  LPT::LPT::GetInstance()->LPT_SetStartPointFromFile(StartPointFilename);
 
-
-  /* Performance Test (just one rectangle)
-  REAL_TYPE Coord1[3]={0, 6, 6};
-  REAL_TYPE Coord2[3]={0,-6,-6};
-  int NumStartPoints[3]={1, 80, 80};
-  LPT::LPT::GetInstance()->LPT_SetStartPointRectangle(Coord1, Coord2, NumStartPoints, StartTime, ReleaseTime, TimeSpan, ParticleLifeTime);
-  */
-
-  /* Test for MovingPoints
-  ReleaseTime=0;
-  TimeSpan=0.05;
-  REAL_TYPE Coords[12]={0,-3,-3, 0,-3,3, 0,3,3, 0,3,-3};
-  double Time[4]={0, 0.1, 0.2, 0.3};
-  LPT::LPT::GetInstance()->LPT_SetStartPointMovingPoints(4, Coords,  Time, StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
-  */
-
-  //Test for StartPoint save/load
-  /*
-  REAL_TYPE Coord1[3]={0,0,0};
-  REAL_TYPE Coord2[3]={0,0,0};
-  int NumStartPoints[3];
-  LPT::LPT::GetInstance()->LPT_SetStartPoint(Coord1,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
-
-  Coord1[0]=0;
-  Coord1[1]=3;
-  Coord1[2]=-3;
-  Coord2[0]=0;
-  Coord2[1]=3;
-  Coord2[2]=0;
-  LPT::LPT::GetInstance()->LPT_SetStartPointLine(Coord1, Coord2, 5,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
-
-  Coord1[0]=0;
-  Coord1[1]=-3;
-  Coord1[2]=-3;
-  Coord2[0]=0;
-  Coord2[1]=-1;
-  Coord2[2]=-1;
-  NumStartPoints[0]=1;
-  NumStartPoints[1]=3;
-  NumStartPoints[2]=3;
-  LPT::LPT::GetInstance()->LPT_SetStartPointRectangle(Coord1, Coord2, NumStartPoints, StartTime, ReleaseTime, TimeSpan, ParticleLifeTime);
-
-  Coord1[0]=0;
-  Coord1[1]=-1;
-  Coord1[2]=1;
-  Coord2[0]=2;
-  Coord2[1]=-3;
-  Coord2[2]=3;
-  NumStartPoints[0]=3;
-  NumStartPoints[1]=3;
-  NumStartPoints[2]=3;
-  LPT::LPT::GetInstance()->LPT_SetStartPointCuboid(Coord1, Coord2, NumStartPoints,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
-
-  Coord1[0]=0;
-  Coord1[1]=1.5;
-  Coord1[2]=1.5;
-  REAL_TYPE Radius=1;
-  REAL_TYPE NormalVector[3]={1,0,0};
-  LPT::LPT::GetInstance()->LPT_SetStartPointCircle(Coord1, 10, Radius, NormalVector,  StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
-
-  REAL_TYPE Coords[9]={0, 1, -3, 0, 1, -2, 0, 1, -1};
-  double Time[3]={0,5,10};
-  LPT::LPT::GetInstance()->LPT_SetStartPointMovingPoints(3, Coords,  Time, StartTime,  ReleaseTime,  TimeSpan,  ParticleLifeTime);
-  */
-
-
-
+  //API経由で開始点を設定する場合はLPT_Initializeを呼ぶ前に呼び出すこと
 
   if ( IsMaster() ) printf("\n\tcall LPT_Initialize()\n\n");
   //初期化

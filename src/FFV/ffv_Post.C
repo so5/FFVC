@@ -40,6 +40,7 @@ bool FFV::Post()
   }
   
   
+  LPT::LPT::GetInstance()->LPT_Post();
   TIMING__
   {
     fp = NULL;
@@ -75,7 +76,6 @@ bool FFV::Post()
     }
   }
   
-  LPT::LPT::GetInstance()->LPT_Post();
   
   return true;
 }

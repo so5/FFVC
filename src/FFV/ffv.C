@@ -393,26 +393,10 @@ int FFV::MainLoop()
     //LPT 粒子計算呼び出し
     LPT::LPT::GetInstance()->LPT_CalcParticleData(calc_args);
     //LPT ファイル出力
+    //出力タイミングはLPT側で独自に設定されており、LPT_OutputParticleData()内で判定している
     if ( C.Hide.PM_Test == OFF )
     {
-        // 通常
-        if ( C.Interval[Control::tg_basic].isTriggered(CurrentStep, CurrentTime) )
-        {
-            LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
-        }
-
-        // リスタート実行時にIntervalが正常にチェックされないようなので、1000ステップ毎に強制的にファイル出力を行う
-        if(CurrentStep%1000 == 0) LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
-
-        // 最終ステップ
-        if ( C.Interval[Control::tg_compute].isLast(CurrentStep, CurrentTime) )
-        {
-            // 指定間隔の出力がない場合のみ（重複を避ける）
-            if ( !C.Interval[Control::tg_basic].isTriggered(CurrentStep, CurrentTime) )
-            {
-                LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
-            }
-        }
+        LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
     }
     
     switch (loop_ret) 
