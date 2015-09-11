@@ -1962,8 +1962,8 @@ void ParseBC::loadBCs(Control* C, MediumList* mat, CompoList* cmp)
   // 直下のラベルを取得
   tpCntl->getLabelVector(label_base, nodes);
   
-  
   int m = 1;
+  /* 
   for (vector<string>::iterator it = nodes.begin(); it != nodes.end(); it++)
   {
     // ラベル名の重複チェック
@@ -1977,6 +1977,7 @@ void ParseBC::loadBCs(Control* C, MediumList* mat, CompoList* cmp)
     }
     m++;
   }
+  */
   
   
   int odr_outer = 0; // 外部境界条件の格納番号
