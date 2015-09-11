@@ -4064,14 +4064,14 @@ void FFV::SM_Polygon2Cut(double& m_prep, double& m_total, FILE* fp)
   }
   
   // Polylibファイルをテンポラリに出力
-  if ( !F->writePolylibFile(cmp) )
+  Hostonly_
   {
-    Hostonly_
+    if ( !F->writePolylibFile(cmp) )
     {
       fprintf(fp,"\tError : writing polylib.tp\n");
       printf    ("\tError : writing polylib.tp\n");
+      Exit(0);
     }
-    Exit(0);
   }
   
   
