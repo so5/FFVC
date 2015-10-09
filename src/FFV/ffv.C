@@ -396,7 +396,7 @@ int FFV::MainLoop()
     //出力タイミングはLPT側で独自に設定されており、LPT_OutputParticleData()内で判定している
     if ( C.Hide.PM_Test == OFF )
     {
-        LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00);
+        LPT::LPT::GetInstance()->LPT_OutputParticleData(CurrentStep, CurrentTime, v00, i==Session_LastStep);
     }
     
     switch (loop_ret) 

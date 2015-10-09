@@ -920,12 +920,31 @@ int FFV::Initialize(int argc, char **argv)
   init_args.CurrentTimeStep   = CurrentStep;
   init_args.CurrentTime       = CurrentTime;
   init_args.PM                = &PM;
-  init_args.MigrateOnRestart  = true;
+
+  label        = "/LPT/MigrateOnRestart";
+  std::string value="Off";
+  if ( !(tp_ffv.getInspectedValue(label, value)) )
+  {
+    Hostonly_ printf("\tError : Couldn't get Migration setting\n");
+    Exit(0);
+  }
+  if ( !strcasecmp(value.c_str(), "on") )
+  {
+    init_args.MigrateOnRestart=true;
+  }
+  label        = "/LPT/DirectoryPath";
+  if ( !(tp_ffv.getInspectedValue(label, value)) )
+  {
+    Hostonly_ printf("\tError : Couldn't get Directory Path\n");
+    Exit(0);
+  }
+  init_args.DirectoryPath=value;
 
   label        = "/LPT/FileOutputInterval";
   int interval = 0;
   if ( !(tp_ffv.getInspectedValue(label, interval)) )
   {
+    Hostonly_ printf("\tError : Couldn't get FileOutputInterval for LPT\n");
     Exit(0);
   }
   init_args.FileOutputInterval=interval;
@@ -961,6 +980,7 @@ int FFV::Initialize(int argc, char **argv)
   label="/LPT/StartPointFilename";
   if ( !(tp_ffv.getInspectedValue(label, StartPointFilename)) )
   {
+    Hostonly_ printf("\tError : Couldn't get StartPoint filename\n");
     Exit(0);
   }
   LPT::LPT::GetInstance()->LPT_SetStartPointFromFile(StartPointFilename);
@@ -971,7 +991,7 @@ int FFV::Initialize(int argc, char **argv)
   //初期化
   if(LPT::LPT::GetInstance()->LPT_Initialize(init_args) !=0)
   {
-      std::cerr<<"LPT_Initialize failed!!"<<std::endl;
+    Hostonly_ printf("\tError : LPT_Initialize failed!\n");
   }
   if ( IsMaster() ) printf("\n\tLPT Initialize end.\n\n");
   // LPTlib初期化処理 end
