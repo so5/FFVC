@@ -76,6 +76,7 @@ bool FFV::Post()
     }
   }
   
+  LPT::LPT::GetInstance()->LPT_Post();
   
   return true;
 }

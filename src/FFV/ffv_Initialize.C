@@ -576,7 +576,7 @@ int FFV::Initialize(int argc, char **argv)
   
   F->getStagingOption();
   
-  F->getRestartDFI();
+  F->getRestartDFI(); 
 
   
   
@@ -653,8 +653,6 @@ int FFV::Initialize(int argc, char **argv)
   
   // 初期条件の条件設定
   setInitialCondition();
-  
-
   // サンプリング元となるデータ配列の登録
   if ( C.SamplingMode == ON ) 
   {
