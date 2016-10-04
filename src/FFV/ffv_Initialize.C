@@ -918,6 +918,7 @@ int FFV::Initialize(int argc, char **argv)
   init_args.CurrentTimeStep   = CurrentStep;
   init_args.CurrentTime       = CurrentTime;
   init_args.PM                = &PM;
+  init_args.CacheSize         = 8192;
 
   label        = "/LPT/MigrateOnRestart";
   std::string value="Off";
